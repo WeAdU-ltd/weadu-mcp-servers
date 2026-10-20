@@ -1,0 +1,41 @@
+{
+  "name": "@weadu/mcp-ai-visibility",
+  "version": "1.0.0",
+  "description": "Check whether AI crawlers can fetch a public URL. Free tool by WeAdU (https://weadu.com/).",
+  "mcpName": "com.weadu/ai-visibility",
+  "type": "module",
+  "license": "MIT",
+  "homepage": "https://weadu.com/",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/WeAdU-ltd/weadu-mcp-servers.git",
+    "directory": "packages/ai-visibility"
+  },
+  "bin": {
+    "weadu-mcp-ai-visibility": "./dist/index.js"
+  },
+  "main": "./dist/index.js",
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "engines": {
+    "node": ">=22.18"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "test": "node --experimental-strip-types --test src/robots.test.ts src/guard.test.ts src/signals.test.ts src/check-visibility.test.ts",
+    "prepublishOnly": "npm run build"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "1.32.1",
+    "zod": "3.25.76"
+  },
+  "devDependencies": {
+    "@types/node": "22.19.0",
+    "typescript": "5.9.3"
+  }
+}
