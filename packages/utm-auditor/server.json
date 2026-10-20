@@ -1,0 +1,21 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "com.weadu/utm-auditor",
+  "title": "WeAdU UTM Auditor",
+  "description": "Check campaign UTM tags on a URL. Free tool by WeAdU.",
+  "websiteUrl": "https://weadu.com/",
+  "version": "1.0.0",
+  "repository": {
+    "url": "https://github.com/WeAdU-ltd/weadu-mcp-servers",
+    "source": "github",
+    "subfolder": "packages/utm-auditor"
+  },
+  "packages": [
+    {
+      "registryType": "npm",
+      "identifier": "@weadu/mcp-utm-auditor",
+      "version": "1.0.0",
+      "transport": { "type": "stdio" }
+    }
+  ]
+}

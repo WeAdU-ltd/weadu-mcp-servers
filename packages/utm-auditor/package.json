@@ -1,0 +1,34 @@
+{
+  "name": "@weadu/mcp-utm-auditor",
+  "version": "1.0.0",
+  "description": "Audit campaign UTM parameters on a URL. Free tool by WeAdU (https://weadu.com/).",
+  "mcpName": "com.weadu/utm-auditor",
+  "type": "module",
+  "license": "MIT",
+  "homepage": "https://weadu.com/",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/WeAdU-ltd/weadu-mcp-servers.git",
+    "directory": "packages/utm-auditor"
+  },
+  "bin": {
+    "weadu-mcp-utm-auditor": "./dist/index.js"
+  },
+  "main": "./dist/index.js",
+  "files": ["dist", "README.md"],
+  "publishConfig": { "access": "public" },
+  "engines": { "node": ">=22.18" },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "test": "node --experimental-strip-types --test src/audit-utm.test.ts",
+    "prepublishOnly": "npm run build"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "1.30.0",
+    "zod": "3.25.76"
+  },
+  "devDependencies": {
+    "@types/node": "22.19.0",
+    "typescript": "5.9.3"
+  }
+}
