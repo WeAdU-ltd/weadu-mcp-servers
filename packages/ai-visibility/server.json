@@ -1,0 +1,23 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "com.weadu/ai-visibility",
+  "title": "WeAdU AI Visibility",
+  "description": "See if AI crawlers can fetch a public URL. Free tool by WeAdU.",
+  "websiteUrl": "https://weadu.com/",
+  "version": "1.0.0",
+  "repository": {
+    "url": "https://github.com/WeAdU-ltd/weadu-mcp-servers",
+    "source": "github",
+    "subfolder": "packages/ai-visibility"
+  },
+  "packages": [
+    {
+      "registryType": "npm",
+      "identifier": "@weadu/mcp-ai-visibility",
+      "version": "1.0.0",
+      "transport": {
+        "type": "stdio"
+      }
+    }
+  ]
+}
