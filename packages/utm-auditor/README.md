@@ -11,6 +11,8 @@ The `audit_utm` tool takes one URL and reports:
 - the same UTM key used twice;
 - values longer than 200 characters;
 - unknown `utm_*` keys (warning);
+- values with uppercase letters, which GA4 counts apart from lowercase ones (warning);
+- values with a `%` not followed by two hex digits (warning);
 - UTM tags placed after `#`, where analytics tools do not read them (warning);
 - URLs that are not `http` or `https`, or that contain a username or password.
 

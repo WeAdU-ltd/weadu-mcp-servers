@@ -11,7 +11,9 @@ export type UtmFindingCode =
   | "duplicate_key"
   | "unknown_utm"
   | "value_too_long"
-  | "fragment_utm";
+  | "fragment_utm"
+  | "mixed_case_value"
+  | "malformed_encoding";
 export interface UtmFinding {
   severity: "error" | "warning";
   code: UtmFindingCode;
@@ -45,6 +47,21 @@ function safeDecode(raw: string): string {
 interface Pair {
   key: string;
   value: string | null;
+  rawValue: string | null;
+}
+
+const MALFORMED_PERCENT = /%(?![0-9A-Fa-f]{2})/;
+
+function isMalformed(raw: string): boolean {
+  if (MALFORMED_PERCENT.test(raw)) {
+    return true;
+  }
+  try {
+    decodeURIComponent(raw);
+    return false;
+  } catch {
+    return true;
+  }
 }
 
 function splitPairs(raw: string): Pair[] {
@@ -57,9 +74,10 @@ function splitPairs(raw: string): Pair[] {
     .map((chunk) => {
       const index = chunk.indexOf("=");
       if (index === -1) {
-        return { key: safeDecode(chunk), value: null };
+        return { key: safeDecode(chunk), value: null, rawValue: null };
       }
-      return { key: safeDecode(chunk.slice(0, index)), value: safeDecode(chunk.slice(index + 1)) };
+      const rawValue = chunk.slice(index + 1);
+      return { key: safeDecode(chunk.slice(0, index)), value: safeDecode(rawValue), rawValue };
     });
 }
 
@@ -114,7 +132,7 @@ export function auditUtm(input: string): AuditUtmResult {
 
   const present: Partial<Record<UtmParam, string>> = {};
   const seen = new Set<string>();
-  for (const { key, value } of splitPairs(url.search.slice(1))) {
+  for (const { key, value, rawValue } of splitPairs(url.search.slice(1))) {
     const lower = key.toLowerCase();
     if (!lower.startsWith("utm_")) {
       continue;
@@ -147,6 +165,23 @@ export function auditUtm(input: string): AuditUtmResult {
           code: "whitespace",
           param,
           message: `${param} starts or ends with whitespace.`,
+        });
+      }
+      const malformed = rawValue !== null && isMalformed(rawValue);
+      if (malformed) {
+        findings.push({
+          severity: "warning",
+          code: "malformed_encoding",
+          param,
+          message: `${param} contains a % that is not followed by two hex digits; the value may be read incorrectly.`,
+        });
+      }
+      if (!malformed && value !== value.toLowerCase()) {
+        findings.push({
+          severity: "warning",
+          code: "mixed_case_value",
+          param,
+          message: `${param} contains uppercase letters; analytics tools such as GA4 treat "${value}" and "${value.toLowerCase()}" as different values.`,
         });
       }
       if (Array.from(value).length > MAX_VALUE_LENGTH) {
