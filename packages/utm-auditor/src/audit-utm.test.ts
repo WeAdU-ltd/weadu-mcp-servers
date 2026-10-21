@@ -111,3 +111,28 @@ test("cas limites : encodage invalide et paramètres non UTM répétés", () => 
   assert.equal(r.ok, true);
   assert.equal(r.present.utm_content, "%E0%A4%A");
 });
+
+test("22. valeurs en majuscules : avertissement mixed_case_value", () => {
+  const r = auditUtm(`${BASE}?utm_source=LinkedIn&utm_medium=social&utm_campaign=Test`);
+  assert.equal(r.ok, true);
+  assert.deepEqual(codes(r), ["mixed_case_value", "mixed_case_value"]);
+  assert.ok(has(r, "mixed_case_value", "utm_source"));
+  assert.ok(has(r, "mixed_case_value", "utm_campaign"));
+  assert.equal(has(r, "mixed_case_value", "utm_medium"), false);
+  const digits = auditUtm(`${BASE}?utm_source=google&utm_medium=cpc&utm_campaign=2026-q4_%C3%A9t%C3%A9`);
+  assert.deepEqual(digits.findings, []);
+});
+
+test("23. % mal encodé : avertissement malformed_encoding", () => {
+  const r = auditUtm(`${BASE}?utm_source=linked%ZZin&utm_medium=cpc&utm_campaign=te%2`);
+  assert.equal(r.ok, true);
+  assert.ok(has(r, "malformed_encoding", "utm_source"));
+  assert.ok(has(r, "malformed_encoding", "utm_campaign"));
+  assert.equal(has(r, "mixed_case_value"), false);
+  const trailing = auditUtm(`${BASE}?utm_source=google&utm_medium=cpc&utm_campaign=sale%`);
+  assert.ok(has(trailing, "malformed_encoding", "utm_campaign"));
+  const badUtf8 = auditUtm(`${BASE}?utm_source=google&utm_medium=cpc&utm_campaign=%C3`);
+  assert.ok(has(badUtf8, "malformed_encoding", "utm_campaign"));
+  const ok = auditUtm(`${BASE}?utm_source=google&utm_medium=cpc&utm_campaign=50%25%20off`);
+  assert.deepEqual(ok.findings, []);
+});
