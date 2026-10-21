@@ -1,5 +1,7 @@
 # @weadu/mcp-ai-visibility
 
+> **Not published.** This package is no longer released as a separate MCP server. Its checks are being merged into the WeAdU "AI Readiness Check" Apify Actor. The code stays here for reference, and the package is marked `private` so npm refuses to publish it.
+
 A free MCP server by [WeAdU](https://weadu.com/) that checks whether AI crawlers can fetch a public URL. It runs locally over stdio. It needs no API key and calls no paid service.
 
 ## What it checks

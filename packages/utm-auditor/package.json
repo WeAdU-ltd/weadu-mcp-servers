@@ -1,7 +1,7 @@
 {
   "name": "@weadu/mcp-utm-auditor",
   "version": "1.0.0",
-  "description": "Audit campaign UTM parameters on a URL. Free tool by WeAdU (https://weadu.com/).",
+  "description": "Audit campaign UTM parameters on one URL or a list: GA4 channels, duplicates, synonyms and corrected URLs. Free tool by WeAdU (https://weadu.com/).",
   "mcpName": "com.weadu/utm-auditor",
   "type": "module",
   "license": "MIT",
@@ -15,12 +15,12 @@
     "weadu-mcp-utm-auditor": "./dist/index.js"
   },
   "main": "./dist/index.js",
-  "files": ["dist", "README.md", "LICENSE"],
+  "files": ["dist", "README.md", "README.fr.md", "LICENSE"],
   "publishConfig": { "access": "public" },
   "engines": { "node": ">=22.18" },
   "scripts": {
     "build": "tsc -p tsconfig.json",
-    "test": "node --experimental-strip-types --test src/audit-utm.test.ts",
+    "test": "node --experimental-strip-types --test src/audit-utm.test.ts src/audit-list.test.ts",
     "prepublishOnly": "npm run build"
   },
   "dependencies": {
