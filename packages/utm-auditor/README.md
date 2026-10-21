@@ -30,6 +30,7 @@ Runs every check above on each URL, then adds:
 - **Duplicates.** `duplicate_url` for the same URL twice. `variant_url` for URLs that only differ by case or synonyms, which GA4 would split into separate rows.
 - **Synonyms.** Values that mean the same thing across the list, with their counts: `LinkedIn` / `linkedin` / `lnkd`, `fb` / `facebook`, `cpc` / `ppc` / `paid`, `social-media` / `social`, and more.
 - **Suggested URL.** A corrected URL for each item: values in lowercase, synonyms normalized, encoding repaired, duplicate keys dropped, UTM tags moved out of the fragment. Other query parameters are kept as they are.
+- **Note on `paid`.** In the suggested URL, the medium `paid` is replaced by `cpc`. Check that this matches your naming plan before you reuse the URL. Both values fall in the same paid channels under GA4's default rules, but a custom channel group or a report filtered on `paid` would see the change.
 
 The response starts with a summary: totals, duplicates, URLs changed, and the number of URLs per GA4 channel.
 
