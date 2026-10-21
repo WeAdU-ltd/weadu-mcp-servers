@@ -1,5 +1,6 @@
 {
   "name": "@weadu/mcp-ai-visibility",
+  "private": true,
   "version": "1.0.0",
   "description": "Check whether AI crawlers can fetch a public URL. Free tool by WeAdU (https://weadu.com/).",
   "mcpName": "com.weadu/ai-visibility",

@@ -13,7 +13,10 @@ export type UtmFindingCode =
   | "value_too_long"
   | "fragment_utm"
   | "mixed_case_value"
-  | "malformed_encoding";
+  | "malformed_encoding"
+  | "ga4_unassigned"
+  | "duplicate_url"
+  | "variant_url";
 export interface UtmFinding {
   severity: "error" | "warning";
   code: UtmFindingCode;
