@@ -1,0 +1,95 @@
+name: Publish to MCP Registry
+
+on:
+  push:
+    tags: ["v*"]
+
+concurrency:
+  group: publish-mcp
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+
+      - name: Set up Node
+        uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
+        with:
+          node-version: "22"
+          registry-url: "https://registry.npmjs.org"
+          cache: npm
+
+      - name: Install, test, build
+        run: |
+          npm ci
+          npm test
+          npm run build
+
+      - name: Refuse a tag that does not match both package versions
+        run: |
+          export TAG="${GITHUB_REF_NAME#v}"
+          node --input-type=module <<'EOF'
+          import { readFileSync } from "node:fs";
+          const tag = process.env.TAG;
+          const pkgs = [
+            "packages/utm-auditor/package.json",
+            "packages/ai-visibility/package.json",
+            "packages/utm-auditor/server.json",
+            "packages/ai-visibility/server.json",
+          ];
+          for (const file of pkgs) {
+            const json = JSON.parse(readFileSync(file, "utf8"));
+            if (json.version !== tag) {
+              console.error(file + " version " + json.version + " != tag " + tag);
+              process.exit(1);
+            }
+          }
+          const utm = JSON.parse(readFileSync("packages/utm-auditor/package.json", "utf8"));
+          const ai = JSON.parse(readFileSync("packages/ai-visibility/package.json", "utf8"));
+          const utmServer = JSON.parse(readFileSync("packages/utm-auditor/server.json", "utf8"));
+          const aiServer = JSON.parse(readFileSync("packages/ai-visibility/server.json", "utf8"));
+          if (utm.mcpName !== utmServer.name || ai.mcpName !== aiServer.name) {
+            console.error("mcpName does not match server.json name");
+            process.exit(1);
+          }
+          EOF
+
+      - name: Publish npm packages
+        run: |
+          for pkg in @weadu/mcp-utm-auditor @weadu/mcp-ai-visibility; do
+            if npm view "$pkg@${GITHUB_REF_NAME#v}" version >/dev/null 2>&1; then
+              echo "$pkg@${GITHUB_REF_NAME#v} already on npm, skipping"
+            else
+              npm publish --workspace "$pkg" --access public
+            fi
+          done
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Install mcp-publisher (pinned v1.8.1, sha256 verified)
+        run: |
+          curl -fsSL -o mcp-publisher.tar.gz "https://github.com/modelcontextprotocol/registry/releases/download/v1.8.1/mcp-publisher_linux_amd64.tar.gz"
+          echo "a06c9096dcb9727c13555b6be26c7effa707b01f06a4c561ba7a3635443cf2cc  mcp-publisher.tar.gz" | sha256sum -c -
+          tar xzf mcp-publisher.tar.gz mcp-publisher
+          chmod +x mcp-publisher
+
+      - name: Publish com.weadu/utm-auditor
+        working-directory: packages/utm-auditor
+        run: |
+          ../../mcp-publisher login dns --domain weadu.com --private-key "$MCP_PRIVATE_KEY"
+          ../../mcp-publisher publish
+        env:
+          MCP_PRIVATE_KEY: ${{ secrets.MCP_PRIVATE_KEY }}
+
+      - name: Publish com.weadu/ai-visibility
+        working-directory: packages/ai-visibility
+        run: |
+          ../../mcp-publisher login dns --domain weadu.com --private-key "$MCP_PRIVATE_KEY"
+          ../../mcp-publisher publish
+        env:
+          MCP_PRIVATE_KEY: ${{ secrets.MCP_PRIVATE_KEY }}
