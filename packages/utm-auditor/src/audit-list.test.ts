@@ -118,3 +118,10 @@ test("Liste: ordre des paramètres conservé, '??' réparé", () => {
   assert.equal(r.items[1]?.suggestedUrl, "https://example.com/?utm_source=blog&utm_medium=referral&utm_campaign=a");
   assert.equal(r.items[1]?.ok, false);
 });
+
+test("Encodage mixte UTF-8 + Latin-1", () => {
+  assert.equal(repairDecode("caf%C3%A9%E9"), "caféé");
+  assert.equal(repairDecode("%E9t%C3%A9"), "été");
+  assert.equal(repairDecode("%C3"), "Ã");
+  assert.equal(repairDecode("%E2%82%AC%FF"), "€ÿ");
+});

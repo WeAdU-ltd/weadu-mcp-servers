@@ -30,6 +30,7 @@ Il applique tous les contrôles ci-dessus à chaque URL, puis ajoute :
 - **Les doublons.** `duplicate_url` pour une même URL présente deux fois. `variant_url` pour des URL qui ne diffèrent que par la casse ou par des synonymes, et que GA4 séparerait en plusieurs lignes.
 - **Les synonymes.** Les valeurs qui veulent dire la même chose dans la liste, avec leur nombre : `LinkedIn` / `linkedin` / `lnkd`, `fb` / `facebook`, `cpc` / `ppc` / `paid`, `social-media` / `social`, etc.
 - **Une URL corrigée.** Pour chaque URL, une version corrigée : valeurs en minuscules, synonymes normalisés, encodage réparé, clés en double retirées, balises UTM sorties du fragment. Les autres paramètres sont conservés tels quels.
+- **À propos de `paid`.** Dans l'URL corrigée, le support `paid` est remplacé par `cpc`. Vérifiez que cela correspond à votre plan de nommage avant de réutiliser l'URL. Les règles par défaut de GA4 rangent les deux valeurs dans les mêmes canaux payants, mais un groupe de canaux personnalisé ou un rapport filtré sur `paid` verrait la différence.
 
 La réponse commence par un résumé : totaux, doublons, URL modifiées et nombre d'URL par canal GA4.
 

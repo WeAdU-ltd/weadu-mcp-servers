@@ -63,17 +63,31 @@ export function repairDecode(raw: string): string {
   try {
     return decodeURIComponent(fixed);
   } catch {
-    // Escapes that are not valid UTF-8 (often Latin-1, e.g. %E9 for "é"): decode those bytes as Latin-1.
-    return fixed.replace(/(%[0-9A-Fa-f]{2})+/g, (run) => {
-      try {
-        return decodeURIComponent(run);
-      } catch {
-        return run
-          .split("%")
-          .filter(Boolean)
-          .map((hex) => String.fromCharCode(parseInt(hex, 16)))
-          .join("");
-      }
-    });
+    // Mixed runs: decode valid UTF-8 sequences, read only the isolated invalid bytes as Latin-1
+    // (e.g. "caf%C3%A9%E9" -> "caféé").
+    return fixed.replace(/(%[0-9A-Fa-f]{2})+/g, (run) => decodeMixed(run));
   }
+}
+
+function decodeMixed(run: string): string {
+  const bytes = run.split("%").filter(Boolean).map((hex) => parseInt(hex, 16));
+  let out = "";
+  let i = 0;
+  while (i < bytes.length) {
+    const b = bytes[i] as number;
+    const len = b < 0x80 ? 1 : b >= 0xc2 && b <= 0xdf ? 2 : b >= 0xe0 && b <= 0xef ? 3 : b >= 0xf0 && b <= 0xf4 ? 4 : 0;
+    if (len > 0 && i + len <= bytes.length) {
+      const seq = bytes.slice(i, i + len);
+      try {
+        out += decodeURIComponent(seq.map((x) => "%" + x.toString(16).padStart(2, "0")).join(""));
+        i += len;
+        continue;
+      } catch {
+        // not a valid sequence: fall through to Latin-1 for this single byte
+      }
+    }
+    out += String.fromCharCode(b);
+    i += 1;
+  }
+  return out;
 }
