@@ -15,7 +15,7 @@ jobs:
       contents: write
       pull-requests: write
     steps:
-      - name: Squash-merge PRs titled with [HOLD]
+      - name: Squash-merge only when ok-to-merge (never with [HOLD] in title)
         uses: actions/github-script@60a0d83039c877a2a3f256c4476a0a946fdca871 # v7.0.1
         env:
           WEADU_AUTOMATION_PAT: ${{ secrets.WEADU_AUTOMATION_PAT }}
@@ -26,6 +26,7 @@ jobs:
               core.info('WEADU_AUTOMATION_PAT not configured; skipping auto-merge.');
               return;
             }
+            const okToMergeLabel = 'ok-to-merge';
             const pulls = context.payload.workflow_run.pull_requests || [];
             for (const ref of pulls) {
               const { data: pr } = await github.rest.pulls.get({
@@ -33,8 +34,19 @@ jobs:
                 repo: context.repo.repo,
                 pull_number: ref.number,
               });
-              if (!/\[HOLD\]/i.test(pr.title || '')) continue;
-              if (pr.draft) continue;
+              if (/\[HOLD\]/i.test(pr.title || '')) {
+                core.info(`PR #${pr.number} has [HOLD] in title; skipping merge.`);
+                continue;
+              }
+              if (pr.draft) {
+                core.info(`PR #${pr.number} is still draft; skipping merge.`);
+                continue;
+              }
+              const labels = (pr.labels || []).map((label) => label.name);
+              if (!labels.includes(okToMergeLabel)) {
+                core.info(`PR #${pr.number} missing ${okToMergeLabel} label; skipping merge.`);
+                continue;
+              }
               if (!pr.mergeable) {
                 core.info(`PR #${pr.number} not mergeable.`);
                 continue;
