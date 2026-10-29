@@ -16,7 +16,10 @@ function caveats(text: string): void {
   assert.match(text, /Display is Display/);
   assert.match(text, /Video is Paid Video/);
   assert.match(text, /Shopping is Paid Shopping/);
+  assert.match(text, /fall back to UTM parameters/);
   assert.match(text, /gclid, wbraid, gbraid and dclid are not read/);
+  assert.match(text, /published source list can lag/);
+  assert.match(text, /x\.com/);
 }
 
 test("les trois limites sont sur audit_utm, sur la liste, et dans les descriptions", () => {
@@ -262,9 +265,22 @@ test("README et zod : vie privée, canaux manuels, correctif de sécurité", () 
     assert.match(readme, /model provider|fournisseur du modèle/);
     assert.match(readme, /auto-tagging|auto-tagging|auto-tagué|automatique/);
     assert.match(readme, /gclid/);
+    assert.match(readme, /x\.com|11242870/);
     assert.equal(readme.includes("never leave your machine"), false);
     assert.equal(readme.includes("ne quittent jamais"), false);
+    assert.equal(readme.includes("corrected list"), false);
+    assert.equal(readme.includes("liste corrigée"), false);
+    assert.match(readme, /cleaned URL|URL nettoyée/);
+    assert.match(readme, /naming suggestions|suggestions de nommage/);
   }
+  const utmServer = JSON.parse(
+    readFileSync(new URL("../server.json", import.meta.url), "utf8"),
+  ) as { description: string };
+  assert.match(utmServer.description, /mechanically cleaned/);
+  assert.equal(utmServer.description.includes("mechanical fixes"), false);
+  assert.match(utmServer.description, /weadu\.com/);
+  assert.match(AUDIT_UTM_DESCRIPTION, /weadu\.com/);
+  assert.match(AUDIT_LIST_DESCRIPTION, /weadu\.com/);
   for (const file of ["../package.json", "../../ai-visibility/package.json"]) {
     const pkg = JSON.parse(readFileSync(new URL(file, import.meta.url), "utf8")) as { dependencies: { zod: string } };
     const [major, minor, patch] = pkg.dependencies.zod.split(".").map(Number);

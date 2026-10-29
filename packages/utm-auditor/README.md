@@ -10,7 +10,7 @@ Both tools return the same manual-traffic assessment. The channel follows Google
 
 Three limits are on every result:
 
-- **Manual traffic only.** [Google Ads auto-tagging](https://support.google.com/google-ads/answer/3095550) is on by default, and GA4 has no setting that lets UTM values override it. For those clicks the channel comes from the ad network type and the campaign type: Performance Max and Demand Gen are Cross-network, Display is Display, Video is Paid Video, and Shopping is Paid Shopping. See also [manual tagging and auto-tagging](https://support.google.com/analytics/answer/11242870).
+- **Manual traffic only.** [Google Ads auto-tagging](https://support.google.com/google-ads/answer/3095550) is on by default, and GA4 has no setting that lets UTM values override auto-tagging when a valid `gclid` or `dclid` is present. For tagged ad clicks the channel comes from the ad network type and the campaign type: Performance Max and Demand Gen are Cross-network, Display is Display, Video is Paid Video, and Shopping is Paid Shopping. When auto-tagging does not apply or the click id cannot be used, GA4 can fall back to UTM parameters (see [manual tagging and auto-tagging](https://support.google.com/analytics/answer/11242870)).
 - **`gclid`, `wbraid`, `gbraid` and `dclid` are not read.**
 - **The source list can lag the product.** A host matches a published source exactly, after a leading `www.` is removed, when a dot-suffix is a published source, or when the label before the TLD is one (`www.linkedin.com` matches `linkedin`). The file has no date. It does not list `x.com`, Threads, Discord or the AI assistants named on the same help page, so a live property can disagree.
 
@@ -69,7 +69,7 @@ npx -y @weadu/mcp-utm-auditor
 }
 ```
 
-Then ask your assistant, for example: "Audit the UTM tags of these 300 campaign URLs and give me the corrected list."
+Then ask your assistant, for example: "Audit the UTM tags of these 300 campaign URLs and report cleaned URLs, findings, and naming suggestions."
 
 ## About
 
