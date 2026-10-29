@@ -1,0 +1,69 @@
+name: auto-merge-cursor-prs
+
+on:
+  workflow_run:
+    workflows: [pr-gate]
+    types: [completed]
+
+jobs:
+  auto-merge:
+    if: >
+      github.event.workflow_run.event == 'pull_request' &&
+      github.event.workflow_run.conclusion == 'success'
+    runs-on: [self-hosted, weadu-automation]
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - name: Squash-merge only when ok-to-merge (never with [HOLD] in title)
+        uses: actions/github-script@60a0d83039c877a2a3f256c4476a0a946fdca871 # v7.0.1
+        env:
+          WEADU_AUTOMATION_PAT: ${{ secrets.WEADU_AUTOMATION_PAT }}
+        with:
+          github-token: ${{ secrets.WEADU_AUTOMATION_PAT || github.token }}
+          script: |
+            if (!process.env.WEADU_AUTOMATION_PAT) {
+              core.info('WEADU_AUTOMATION_PAT not configured; skipping auto-merge.');
+              return;
+            }
+            const okToMergeLabel = 'ok-to-merge';
+            const pulls = context.payload.workflow_run.pull_requests || [];
+            for (const ref of pulls) {
+              const { data: pr } = await github.rest.pulls.get({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                pull_number: ref.number,
+              });
+              if (/\[HOLD\]/i.test(pr.title || '')) {
+                core.info(`PR #${pr.number} has [HOLD] in title; skipping merge.`);
+                continue;
+              }
+              if (pr.draft) {
+                core.info(`PR #${pr.number} is still draft; skipping merge.`);
+                continue;
+              }
+              const labels = (pr.labels || []).map((label) => label.name);
+              if (!labels.includes(okToMergeLabel)) {
+                core.info(`PR #${pr.number} missing ${okToMergeLabel} label; skipping merge.`);
+                continue;
+              }
+              if (!pr.mergeable) {
+                core.info(`PR #${pr.number} not mergeable.`);
+                continue;
+              }
+              const runSha = context.payload.workflow_run.head_sha;
+              if (pr.head.sha !== runSha) {
+                core.info(
+                  `PR #${pr.number} head ${pr.head.sha} differs from pr-gate run ${runSha}; skipping merge.`,
+                );
+                continue;
+              }
+              await github.rest.pulls.merge({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                pull_number: pr.number,
+                merge_method: 'squash',
+                sha: runSha,
+              });
+              core.info(`Merged PR #${pr.number}.`);
+            }

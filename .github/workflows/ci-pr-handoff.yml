@@ -1,0 +1,73 @@
+name: ci-pr-handoff
+
+on:
+  workflow_run:
+    workflows: [pr-gate]
+    types: [completed]
+
+jobs:
+  handoff:
+    if: >
+      github.event.workflow_run.event == 'pull_request' &&
+      github.event.workflow_run.conclusion == 'failure'
+    runs-on: [self-hosted, weadu-automation]
+    permissions:
+      pull-requests: write
+    steps:
+      - name: Ask Cursor to fix failing CI
+        uses: actions/github-script@60a0d83039c877a2a3f256c4476a0a946fdca871 # v7.0.1
+        with:
+          script: |
+            const run = context.payload.workflow_run;
+            const pulls = run.pull_requests || [];
+            if (!pulls.length) return;
+            const marker = '<!-- weadu-ci-handoff -->';
+            for (const ref of pulls) {
+              const { data: comments } = await github.rest.issues.listComments({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: ref.number,
+              });
+              const recent = comments.find(
+                (c) =>
+                  (c.body || '').includes(marker) &&
+                  Date.now() - new Date(c.created_at).getTime() < 6 * 60 * 60 * 1000,
+              );
+              if (recent) continue;
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: ref.number,
+                body: `${marker}\n@cursor The **pr-gate** workflow failed on ${run.head_sha.slice(0, 7)}. Fix the CI on this branch and push again.\n\nRun: https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${run.id}`,
+              });
+            }
+
+  cleanup:
+    if: >
+      github.event.workflow_run.event == 'pull_request' &&
+      github.event.workflow_run.conclusion == 'success'
+    runs-on: [self-hosted, weadu-automation]
+    permissions:
+      pull-requests: write
+    steps:
+      - name: Delete resolved CI handoff comments
+        uses: actions/github-script@60a0d83039c877a2a3f256c4476a0a946fdca871 # v7.0.1
+        with:
+          script: |
+            const marker = '<!-- weadu-ci-handoff -->';
+            const pulls = context.payload.workflow_run.pull_requests || [];
+            for (const ref of pulls) {
+              const { data: comments } = await github.rest.issues.listComments({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: ref.number,
+              });
+              for (const comment of comments) {
+                if (!(comment.body || '').includes(marker)) continue;
+                await github.rest.issues.deleteComment({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  comment_id: comment.id,
+                });
+              }
+            }

@@ -1,0 +1,45 @@
+name: pr-gate
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+concurrency:
+  group: pr-gate-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  pr-gate:
+    runs-on: [self-hosted, weadu-automation]
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+
+      - name: Set up Node
+        uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
+        with:
+          node-version: "22.18"
+          cache: npm
+
+      - name: Require Node 22.18+
+        run: |
+          node <<'EOF'
+          const [major, minor, patch] = process.version.slice(1).split(".").map(Number);
+          const ok =
+            major > 22 ||
+            (major === 22 && (minor > 18 || (minor === 18 && patch >= 0)));
+          if (!ok) {
+            console.error(`Node ${process.version} is too old; need 22.18+`);
+            process.exit(1);
+          }
+          console.log(`Node ${process.version} OK`);
+          EOF
+
+      - name: Install, test, build
+        run: |
+          npm ci
+          npm test
+          npm run build

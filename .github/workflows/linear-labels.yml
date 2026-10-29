@@ -1,0 +1,50 @@
+name: linear-labels
+
+on:
+  workflow_run:
+    workflows: [pr-gate]
+    types: [completed]
+
+jobs:
+  label:
+    if: github.event.workflow_run.event == 'pull_request'
+    runs-on: [self-hosted, weadu-automation]
+    permissions:
+      pull-requests: write
+    steps:
+      - name: Sync ci/pass or ci/fail labels
+        uses: actions/github-script@60a0d83039c877a2a3f256c4476a0a946fdca871 # v7.0.1
+        with:
+          script: |
+            const ok = context.payload.workflow_run.conclusion === 'success';
+            const pass = 'ci/pass';
+            const fail = 'ci/fail';
+            const pulls = context.payload.workflow_run.pull_requests || [];
+            for (const ref of pulls) {
+              const issue_number = ref.number;
+              try {
+                if (ok) {
+                  await github.rest.issues.removeLabel({
+                    owner: context.repo.owner,
+                    repo: context.repo.repo,
+                    issue_number,
+                    name: fail,
+                  });
+                } else {
+                  await github.rest.issues.removeLabel({
+                    owner: context.repo.owner,
+                    repo: context.repo.repo,
+                    issue_number,
+                    name: pass,
+                  });
+                }
+              } catch {
+                /* label may be absent */
+              }
+              await github.rest.issues.addLabels({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number,
+                labels: [ok ? pass : fail],
+              });
+            }
