@@ -15,7 +15,7 @@ jobs:
       pull-requests: write
     steps:
       - name: Ask Cursor to fix failing CI
-        uses: actions/github-script@60a0d83039c877a2a3f256c4476a0a946fdca871 # v7.0.1
+        uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
         with:
           script: |
             const run = context.payload.workflow_run;
@@ -51,7 +51,7 @@ jobs:
       pull-requests: write
     steps:
       - name: Delete resolved CI handoff comments
-        uses: actions/github-script@60a0d83039c877a2a3f256c4476a0a946fdca871 # v7.0.1
+        uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
         with:
           script: |
             const marker = '<!-- weadu-ci-handoff -->';
