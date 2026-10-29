@@ -8,9 +8,13 @@ concurrency:
   group: publish-mcp
   cancel-in-progress: false
 
+# Exception volontaire à la règle CI WeAdU du 24/10/2026 (Jeff) : seuls les jobs
+# test/publish de ce workflow utilisent ubuntu-latest (accès npm/MCP registry fiable).
+# Tous les autres workflows du dépôt restent sur [self-hosted, weadu-automation].
+
 jobs:
   test:
-    runs-on: [self-hosted, weadu-automation]
+    runs-on: ubuntu-latest
     permissions:
       contents: read
     steps:
@@ -31,12 +35,22 @@ jobs:
 
   publish:
     needs: test
-    runs-on: [self-hosted, weadu-automation]
+    runs-on: ubuntu-latest
     permissions:
       contents: read
     steps:
       - name: Checkout
         uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          fetch-depth: 0
+
+      - name: Refuse tag not pointing at a commit on main
+        run: |
+          git fetch origin main
+          if ! git merge-base --is-ancestor "$GITHUB_SHA" origin/main; then
+            echo "Tag $GITHUB_REF_NAME must point to a commit reachable from origin/main (got $GITHUB_SHA)."
+            exit 1
+          fi
 
       - name: Set up Node
         uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0

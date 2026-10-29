@@ -51,11 +51,19 @@ jobs:
                 core.info(`PR #${pr.number} not mergeable.`);
                 continue;
               }
+              const runSha = context.payload.workflow_run.head_sha;
+              if (pr.head.sha !== runSha) {
+                core.info(
+                  `PR #${pr.number} head ${pr.head.sha} differs from pr-gate run ${runSha}; skipping merge.`,
+                );
+                continue;
+              }
               await github.rest.pulls.merge({
                 owner: context.repo.owner,
                 repo: context.repo.repo,
                 pull_number: pr.number,
                 merge_method: 'squash',
+                sha: runSha,
               });
               core.info(`Merged PR #${pr.number}.`);
             }
