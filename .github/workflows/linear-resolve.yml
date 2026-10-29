@@ -1,0 +1,84 @@
+name: linear-resolve
+
+on:
+  pull_request:
+    types: [closed]
+
+jobs:
+  resolve:
+    if: github.event.pull_request.merged == true
+    runs-on: [self-hosted, weadu-automation]
+    steps:
+      - name: Move linked Linear issues to Done
+        env:
+          LINEAR_API_KEY: ${{ secrets.LINEAR_API_KEY }}
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          PR_BODY: ${{ github.event.pull_request.body }}
+          PR_BRANCH: ${{ github.event.pull_request.head.ref }}
+        run: |
+          if [ -z "${LINEAR_API_KEY:-}" ]; then
+            echo "LINEAR_API_KEY not configured; skipping."
+            exit 0
+          fi
+          python3 <<'PY'
+          import json, os, re, urllib.request
+
+          token = os.environ["LINEAR_API_KEY"]
+          text = " ".join(
+            filter(
+              None,
+              [
+                os.environ.get("PR_TITLE", ""),
+                os.environ.get("PR_BODY") or "",
+                os.environ.get("PR_BRANCH", ""),
+              ],
+            )
+          )
+          keys = sorted(set(re.findall(r"\b(?:WEA|STW|NEG)-\d+\b", text, flags=re.I)))
+          print("Linear keys:", keys)
+          for key in keys:
+              query = """
+              query Issue($id: String!) {
+                issue(id: $id) {
+                  id
+                  identifier
+                  team { states { nodes { id name type } } }
+                }
+              }
+              """
+              req = urllib.request.Request(
+                  "https://api.linear.app/graphql",
+                  data=json.dumps({"query": query, "variables": {"id": key.upper()}}).encode(),
+                  headers={"Authorization": token, "Content-Type": "application/json"},
+                  method="POST",
+              )
+              with urllib.request.urlopen(req) as resp:
+                  issue = json.loads(resp.read().decode())["data"]["issue"]
+              if not issue:
+                  print(f"{key}: not found")
+                  continue
+              done = next(
+                  (s["id"] for s in issue["team"]["states"]["nodes"] if s["name"].lower() == "done"),
+                  None,
+              )
+              if not done:
+                  print(f"{key}: no Done state")
+                  continue
+              mutation = """
+              mutation Done($id: String!, $stateId: String!) {
+                issueUpdate(id: $id, input: { stateId: $stateId }) {
+                  issue { identifier state { name } }
+                }
+              }
+              """
+              ureq = urllib.request.Request(
+                  "https://api.linear.app/graphql",
+                  data=json.dumps(
+                      {"query": mutation, "variables": {"id": issue["id"], "stateId": done}}
+                  ).encode(),
+                  headers={"Authorization": token, "Content-Type": "application/json"},
+                  method="POST",
+              )
+              with urllib.request.urlopen(ureq) as resp:
+                  print(json.loads(resp.read().decode()))
+          PY

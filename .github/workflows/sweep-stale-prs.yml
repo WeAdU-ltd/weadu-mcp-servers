@@ -1,0 +1,43 @@
+name: sweep-stale-prs
+
+on:
+  schedule:
+    - cron: "17 6 * * 1-5"
+  workflow_dispatch:
+
+jobs:
+  sweep:
+    runs-on: [self-hosted, weadu-automation]
+    permissions:
+      pull-requests: write
+      issues: write
+    steps:
+      - name: Comment on stale open PRs
+        uses: actions/github-script@60a0d83039c877a2a3f256c4476a0a946fdca871 # v7.0.1
+        with:
+          script: |
+            const staleDays = 14;
+            const cutoff = Date.now() - staleDays * 24 * 60 * 60 * 1000;
+            const { data: prs } = await github.rest.pulls.list({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'open',
+              per_page: 100,
+            });
+            for (const pr of prs) {
+              const updated = new Date(pr.updated_at).getTime();
+              if (updated > cutoff) continue;
+              const marker = '<!-- weadu-sweep-stale -->';
+              const { data: comments } = await github.rest.issues.listComments({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: pr.number,
+              });
+              if (comments.some((c) => (c.body || '').includes(marker))) continue;
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: pr.number,
+                body: `${marker}\nThis pull request has had no activity for ${staleDays} days. @cursor please reconcile or close if obsolete (WEA-375 sweep).`,
+              });
+            }

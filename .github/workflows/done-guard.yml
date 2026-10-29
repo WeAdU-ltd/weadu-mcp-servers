@@ -1,0 +1,37 @@
+name: done-guard
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, edited, ready_for_review]
+
+jobs:
+  guard:
+    if: github.event.pull_request.draft == false
+    runs-on: [self-hosted, weadu-automation]
+    permissions:
+      pull-requests: read
+      statuses: write
+    steps:
+      - name: Require a Linear issue key on ready PRs
+        uses: actions/github-script@60a0d83039c877a2a3f256c4476a0a946fdca871 # v7.0.1
+        with:
+          script: |
+            const text = [
+              context.payload.pull_request.title,
+              context.payload.pull_request.body || '',
+              context.payload.pull_request.head.ref,
+            ].join(' ');
+            const hasKey = /\b(?:WEA|STW|NEG)-\d+\b/i.test(text);
+            const state = hasKey ? 'success' : 'failure';
+            const desc = hasKey
+              ? 'Linear issue key found.'
+              : 'Add a Linear issue key (WEA-123) to the PR title, body, or branch.';
+            await github.rest.repos.createCommitStatus({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              sha: context.payload.pull_request.head.sha,
+              state,
+              context: 'done-guard / linear-key',
+              description: desc,
+            });
+            core.info(desc);
