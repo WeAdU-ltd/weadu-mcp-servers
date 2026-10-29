@@ -270,4 +270,7 @@ test("README et zod : vie privée, canaux manuels, correctif de sécurité", () 
     const [major, minor, patch] = pkg.dependencies.zod.split(".").map(Number);
     assert.ok(major! > 4 || (major === 4 && (minor! > 6 || (minor === 6 && patch! >= 6))), file);
   }
+  const lock = readFileSync(new URL("../../../package-lock.json", import.meta.url), "utf8");
+  assert.match(lock, /body-parser-2\.4\.0\.tgz/);
+  assert.match(AUDIT_LIST_DESCRIPTION, /truncated: true/);
 });

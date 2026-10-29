@@ -37,7 +37,7 @@ The result also includes:
 
 - **Manual GA4 channel**, plus a note when a real rule is easy to misread. A search source is evaluated before Email and SMS, so `google` / `email` is Organic Search. A campaign that matches the shop/shopping pattern is evaluated before Email. A medium that contains `mobile` (including `automobile`) matches Mobile Push Notifications. `sem` and `adwords` are not paid mediums in GA4's rule, so with source `google` they stay Organic Search. This tool does not rewrite them to `cpc`.
 - **Cleaned URL.** Lower case for source, medium, campaign, term and content. Encoding repaired. A literal `+` is kept, so `C++` is not turned into `c`. Duplicate keys dropped (first value kept). UTM tags moved out of a fragment that is a query string. Other query parameters are kept. Synonyms are not applied.
-- **Naming suggestions.** Optional renames such as `ppc` to `cpc` or `lnkd` to `linkedin`, each with the manual channel before and after. They are not written into the cleaned URL. There is no suggestion to rewrite `paid`, `sem`, `adwords`, `text`, `txt`, `seo`, `newsletter`, `fb`, `insta`, `li`, `pin`, `x` or `x.com`.
+- **Naming suggestions.** Optional renames such as `ppc` to `cpc` or `lnkd` to `linkedin`, each with the manual channel before and after. They are not written into the cleaned URL. There is no suggestion to rewrite `paid`, `sem`, `adwords`, `text`, `txt`, `seo`, `newsletter`, `fb`, `insta`, `li`, `pin`, `x` or `x.com`. If you change `sem`, `adwords` or `paid` to `cpc` yourself, the manual GA4 channel can change (for example `google` / `sem` becomes Paid Search, and `facebook` / `paid` stays Paid Social because `paid` already matches the paid-medium rule).
 
 ### `audit_utm_list`: up to 5,000 URLs
 

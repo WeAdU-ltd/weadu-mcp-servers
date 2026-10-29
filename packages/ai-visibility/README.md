@@ -4,6 +4,8 @@
 
 A free MCP server by [WeAdU](https://weadu.com/) that checks whether AI crawlers can fetch a public URL. It runs locally over stdio. It needs no API key and calls no paid service.
 
+Requires **Node.js 22.18 or later** (same as the monorepo root).
+
 ## What it checks
 
 The `check_ai_visibility` tool takes one URL and reports:
@@ -20,10 +22,12 @@ The `check_ai_visibility` tool takes one URL and reports:
 
 The server only reads public pages. It refuses non-HTTP URLs, URLs with a username or password, and any host or redirect that resolves to a private, loopback, link-local or cloud metadata address. It follows at most 3 redirects, stops after 8 seconds, caps response sizes and sends no cookies. Requests use the user agent `WeAdU-AI-Visibility/1.0.0 (+https://weadu.com/)`.
 
-## Install
+## Run from the monorepo (private package)
 
 ```bash
-npx -y @weadu/mcp-ai-visibility
+cd packages/ai-visibility
+npm run build
+node dist/index.js
 ```
 
 ## MCP client configuration
@@ -32,12 +36,14 @@ npx -y @weadu/mcp-ai-visibility
 {
   "mcpServers": {
     "weadu-ai-visibility": {
-      "command": "npx",
-      "args": ["-y", "@weadu/mcp-ai-visibility"]
+      "command": "node",
+      "args": ["/absolute/path/to/weadu-mcp-servers/packages/ai-visibility/dist/index.js"]
     }
   }
 }
 ```
+
+Do not use `npx @weadu/mcp-ai-visibility` — the package is private and not on the public npm registry.
 
 ## About
 

@@ -19,6 +19,6 @@ export const AUDIT_UTM_DESCRIPTION =
   " Free tool by WeAdU.";
 
 export const AUDIT_LIST_DESCRIPTION =
-  "Audit up to 5000 campaign URLs. For each URL: the same checks as audit_utm, the manual-traffic GA4 channel, a mechanically cleaned URL, and naming suggestions that are not applied to that URL. Also reports duplicates and synonym groups. " +
+  "Audit up to 5000 campaign URLs (send more and the JSON sets truncated: true; only the first 5000 are processed). For each URL: the same checks as audit_utm, the manual-traffic GA4 channel, a mechanically cleaned URL, and naming suggestions that are not applied to that URL. Also reports duplicates and synonym groups. " +
   LIMITS +
   " Free tool by WeAdU.";
