@@ -11,7 +11,7 @@ server.registerTool(
   {
     title: "AI visibility",
     description:
-      "Fetch a public URL and report robots.txt rules for AI crawlers, noindex, title, canonical, JSON-LD types and llms.txt. Free tool by WeAdU.",
+      "Fetch a public URL and report robots.txt rules for AI crawlers, noindex, title, canonical, JSON-LD types and llms.txt. Workspace reference only — not published on npm. Free tool by WeAdU (https://weadu.com/).",
     inputSchema: { url: z.string().min(1).max(2048) },
     annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: true },
   },

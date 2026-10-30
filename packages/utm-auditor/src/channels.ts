@@ -1,7 +1,9 @@
 // GA4 "Default channel group" rules for manual (UTM-tagged) traffic, in the
-// order Google evaluates them. Source: https://support.google.com/analytics/answer/9756891
-// The source lists are a curated subset of Google's published spreadsheet of
-// search, social, video and shopping sites.
+// order Google evaluates them.
+// https://support.google.com/analytics/answer/9756891
+// Source lists: ./ga4-sources.ts, copied from the file linked on that page.
+
+import { SEARCH, SHOPPING, SOCIAL, VIDEO } from "./ga4-sources.ts";
 
 export type Ga4Channel =
   | "Direct"
@@ -25,23 +27,31 @@ export type Ga4Channel =
   | "Mobile Push Notifications"
   | "Unassigned";
 
-const SEARCH = ["google", "bing", "yahoo", "baidu", "duckduckgo", "yandex", "ecosia", "qwant", "naver", "ask", "aol", "startpage", "search.brave", "seznam", "sogou", "so.com", "daum", "msn", "avg", "lycos", "dogpile", "ekolay", "kvasir", "mail.ru", "rambler", "onet", "wp.pl"];
-const SOCIAL = ["facebook", "fb", "m.facebook.com", "l.facebook.com", "lm.facebook.com", "instagram", "ig", "l.instagram.com", "linkedin", "lnkd.in", "twitter", "t.co", "x.com", "pinterest", "reddit", "snapchat", "threads", "threads.net", "whatsapp", "tumblr", "quora", "discord", "discord.com", "telegram", "t.me", "mastodon", "messenger", "vk.com", "weibo", "wechat", "line", "meetup", "nextdoor", "bluesky", "bsky.app", "medium.com", "slack", "yelp", "tiktok"];
-const VIDEO = ["youtube", "youtube.com", "m.youtube.com", "youtu.be", "vimeo", "vimeo.com", "tiktok", "tiktok.com", "twitch", "twitch.tv", "dailymotion", "dailymotion.com", "wistia", "wistia.com", "netflix", "disneyplus", "hulu", "ted.com"];
-const SHOPPING = ["amazon", "amazon.com", "ebay", "ebay.com", "etsy", "etsy.com", "shopify", "shopify.com", "walmart", "walmart.com", "google shopping", "igshopping", "aliexpress", "alibaba", "mercadolibre", "rakuten", "stripe", "shopzilla", "shop.app"];
-
 const PAID_MEDIUM = /^(.*cp.*|ppc|retargeting|paid.*)$/;
 const SHOP_CAMPAIGN = /^(.*(([^a-df-z]|^)shop|shopping).*)$/;
 const DISPLAY = ["display", "banner", "expandable", "interstitial", "cpm"];
 const SOCIAL_MEDIUM = ["social", "social-network", "social-media", "sm", "social network", "social media"];
 const EMAIL = ["email", "e-mail", "e_mail", "e mail"];
 
-function inList(source: string, list: readonly string[]): boolean {
+/**
+ * Literal match against the published list. Also accepts a leading www.,
+ * a longer host whose dot-suffix is a published source (foo.news.ycombinator.com),
+ * and the label before the TLD when that label is itself a published source
+ * (www.google.com matches google). A source such as google.evil.com does not match.
+ */
+export function inList(source: string, list: ReadonlySet<string>): boolean {
   if (source === "") return false;
-  if (list.includes(source)) return true;
-  // A host such as "www.linkedin.com" or "m.facebook.com" matches the site name.
+  if (list.has(source)) return true;
+  const bare = source.startsWith("www.") ? source.slice(4) : source;
+  if (bare !== source && list.has(bare)) return true;
   const labels = source.split(".");
-  return labels.length > 1 && list.some((site) => !site.includes(".") && !site.includes(" ") && labels.slice(0, -1).includes(site));
+  if (labels.length < 2) return false;
+  for (let i = 1; i < labels.length - 1; i++) {
+    const suffix = labels.slice(i).join(".");
+    if (list.has(suffix)) return true;
+  }
+  const sld = labels[labels.length - 2];
+  return sld !== undefined && list.has(sld);
 }
 
 export function classifyChannel(sourceIn: string, mediumIn: string, campaignIn = ""): Ga4Channel {
@@ -78,4 +88,39 @@ export function classifyChannel(sourceIn: string, mediumIn: string, campaignIn =
 /** True when the medium alone places traffic in a GA4 channel, whatever the source. */
 export function mediumHasChannel(medium: string): boolean {
   return classifyChannel("", medium, "") !== "Unassigned";
+}
+
+/** Notes for manual-rule results that are right and easy to misread. */
+export function ruleOrderNotes(sourceIn: string, mediumIn: string, campaignIn: string, channel: Ga4Channel): string[] {
+  const source = sourceIn.trim().toLowerCase();
+  const medium = mediumIn.trim().toLowerCase();
+  const campaign = campaignIn.trim().toLowerCase();
+  const notes: string[] = [];
+  if (channel === "Organic Search" && inList(source, SEARCH) && (EMAIL.includes(medium) || medium === "sms")) {
+    notes.push(
+      `Source "${sourceIn.trim()}" is on GA4's published search list. That rule is evaluated before Email and SMS, so the manual channel is Organic Search.`,
+    );
+  }
+  if ((channel === "Organic Shopping" || channel === "Paid Shopping") && SHOP_CAMPAIGN.test(campaign) && !inList(source, SHOPPING)) {
+    notes.push(
+      `Campaign "${campaignIn.trim()}" matches GA4's shop/shopping pattern. Shopping rules are evaluated before Email and several other channels, so the manual channel is ${channel}.`,
+    );
+  }
+  if (
+    channel === "Mobile Push Notifications" &&
+    medium.includes("mobile") &&
+    !medium.endsWith("push") &&
+    !medium.includes("notification") &&
+    source !== "firebase"
+  ) {
+    notes.push(
+      `GA4's mobile-push rule matches any medium that contains "mobile". "${mediumIn.trim()}" hits that rule, so the manual channel is Mobile Push Notifications.`,
+    );
+  }
+  if (medium === "sem" || medium === "adwords") {
+    notes.push(
+      `utm_medium "${mediumIn.trim()}" is not in GA4's paid-medium rule (a value that contains "cp", or ppc, retargeting, or a value that starts with "paid"). The manual channel is ${channel}. This tool does not rewrite it to cpc.`,
+    );
+  }
+  return notes;
 }

@@ -1,7 +1,7 @@
 {
   "name": "@weadu/mcp-utm-auditor",
   "version": "1.0.0",
-  "description": "Audit campaign UTM parameters on one URL or a list: GA4 channels, duplicates, synonyms and corrected URLs. Free tool by WeAdU (https://weadu.com/).",
+  "description": "Audit campaign UTM parameters on one URL or a list: manual GA4 channel rules, duplicates, and a mechanical cleanup. Free tool by WeAdU (https://weadu.com/).",
   "mcpName": "com.weadu/utm-auditor",
   "type": "module",
   "license": "MIT",
@@ -20,12 +20,12 @@
   "engines": { "node": ">=22.18" },
   "scripts": {
     "build": "tsc -p tsconfig.json",
-    "test": "node --experimental-strip-types --test src/audit-utm.test.ts src/audit-list.test.ts",
+    "test": "node --experimental-strip-types --test src/audit-utm.test.ts src/audit-list.test.ts src/matrix.test.ts",
     "prepublishOnly": "npm run build"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "1.32.1",
-    "zod": "3.25.76"
+    "zod": "4.6.7"
   },
   "devDependencies": {
     "@types/node": "22.19.0",
