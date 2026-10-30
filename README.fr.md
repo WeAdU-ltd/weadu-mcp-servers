@@ -25,6 +25,8 @@ npm run build
 
 La CI sur les PR et `main` passe par le workflow **`pr-gate`** sur `[self-hosted, weadu-automation]` (jamais `ubuntu-latest`).
 
+Automatisations PR (auto-merge, brouillon→prêt) : [`.github/CI-AUTOMATION.md`](.github/CI-AUTOMATION.md). **Aucune fusion auto sans le label `jeff-go` ; `[HOLD]` et `attente-jeff` ne fusionnent jamais seuls.**
+
 ## À propos
 
 WeAdU Ltd — licence MIT. Voir chaque paquet pour la documentation des outils.
