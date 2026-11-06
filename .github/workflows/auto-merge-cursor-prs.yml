@@ -12,13 +12,17 @@ jobs:
       github.event.workflow_run.conclusion == 'success'
     runs-on: [self-hosted, weadu-automation]
     permissions:
-      contents: write
+      contents: read
       pull-requests: write
     steps:
-      - name: Squash-merge only when ok-to-merge (never with [HOLD] in title)
+      - name: Checkout policy
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+
+      - name: Squash-merge only with Jeff Go (never [HOLD] / attente-jeff)
         uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
         env:
           WEADU_AUTOMATION_PAT: ${{ secrets.WEADU_AUTOMATION_PAT }}
+          WEADU_AUTO_MERGE_ENABLED: ${{ vars.WEADU_AUTO_MERGE_ENABLED }}
         with:
           github-token: ${{ secrets.WEADU_AUTOMATION_PAT || github.token }}
           script: |
@@ -26,7 +30,13 @@ jobs:
               core.info('WEADU_AUTOMATION_PAT not configured; skipping auto-merge.');
               return;
             }
-            const okToMergeLabel = 'ok-to-merge';
+            const path = await import('node:path');
+            const { pathToFileURL } = await import('node:url');
+            const policyPath = pathToFileURL(
+              path.join(process.env.GITHUB_WORKSPACE, '.github/scripts/pr-merge-policy.mjs'),
+            ).href;
+            const policy = await import(policyPath);
+            const autoMergeEnabled = process.env.WEADU_AUTO_MERGE_ENABLED === 'true';
             const pulls = context.payload.workflow_run.pull_requests || [];
             for (const ref of pulls) {
               const { data: pr } = await github.rest.pulls.get({
@@ -34,28 +44,21 @@ jobs:
                 repo: context.repo.repo,
                 pull_number: ref.number,
               });
-              if (/\[HOLD\]/i.test(pr.title || '')) {
-                core.info(`PR #${pr.number} has [HOLD] in title; skipping merge.`);
-                continue;
-              }
-              if (pr.draft) {
-                core.info(`PR #${pr.number} is still draft; skipping merge.`);
-                continue;
-              }
               const labels = (pr.labels || []).map((label) => label.name);
-              if (!labels.includes(okToMergeLabel)) {
-                core.info(`PR #${pr.number} missing ${okToMergeLabel} label; skipping merge.`);
-                continue;
-              }
-              if (!pr.mergeable) {
-                core.info(`PR #${pr.number} not mergeable.`);
-                continue;
-              }
               const runSha = context.payload.workflow_run.head_sha;
-              if (pr.head.sha !== runSha) {
-                core.info(
-                  `PR #${pr.number} head ${pr.head.sha} differs from pr-gate run ${runSha}; skipping merge.`,
-                );
+              const decision = policy.evaluateAutoMerge({
+                title: pr.title,
+                body: pr.body,
+                headRef: pr.head?.ref,
+                labels,
+                draft: pr.draft,
+                autoMergeEnabled,
+                mergeable: pr.mergeable,
+                headSha: pr.head.sha,
+                gateRunSha: runSha,
+              });
+              if (!decision.allowed) {
+                core.info(`PR #${pr.number} not auto-merged: ${decision.reason}`);
                 continue;
               }
               await github.rest.pulls.merge({
@@ -65,5 +68,5 @@ jobs:
                 merge_method: 'squash',
                 sha: runSha,
               });
-              core.info(`Merged PR #${pr.number}.`);
+              core.info(`Merged PR #${pr.number} (${decision.reason}).`);
             }

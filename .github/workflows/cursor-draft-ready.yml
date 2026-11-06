@@ -12,12 +12,22 @@ jobs:
       github.event.workflow_run.conclusion == 'success'
     runs-on: [self-hosted, weadu-automation]
     permissions:
+      contents: read
       pull-requests: write
     steps:
-      - name: Mark draft PR ready for review
+      - name: Checkout policy
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+
+      - name: Mark draft PR ready for review (skip [HOLD] / attente-jeff / sans Go)
         uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
         with:
           script: |
+            const path = await import('node:path');
+            const { pathToFileURL } = await import('node:url');
+            const policyPath = pathToFileURL(
+              path.join(process.env.GITHUB_WORKSPACE, '.github/scripts/pr-merge-policy.mjs'),
+            ).href;
+            const policy = await import(policyPath);
             const run = context.payload.workflow_run;
             const pulls = run.pull_requests || [];
             if (!pulls.length) return;
@@ -27,7 +37,21 @@ jobs:
                 repo: context.repo.repo,
                 pull_number: ref.number,
               });
-              if (!pr.draft) continue;
+              const labels = (pr.labels || []).map((label) => label.name);
+              const ctx = {
+                title: pr.title,
+                body: pr.body,
+                headRef: pr.head?.ref,
+                labels,
+                draft: pr.draft,
+              };
+              if (!policy.shouldMarkDraftReady(ctx)) {
+                const blocked = policy.blockReason(ctx);
+                if (pr.draft && blocked) {
+                  core.info(`PR #${pr.number} stays draft: ${blocked}`);
+                }
+                continue;
+              }
               await github.graphql(
                 `mutation($id: ID!) { markPullRequestReadyForReview(input: { pullRequestId: $id }) { pullRequest { number isDraft } } }`,
                 { id: pr.node_id },

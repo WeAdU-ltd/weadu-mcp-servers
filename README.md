@@ -25,6 +25,8 @@ npm run build
 
 CI runs on pull requests and `main` via the **`pr-gate`** workflow on `[self-hosted, weadu-automation]` (never `ubuntu-latest`).
 
+Pull-request automation (auto-merge, draft→ready) is documented in [`.github/CI-AUTOMATION.md`](.github/CI-AUTOMATION.md). **No PR is auto-merged without Jeff’s `jeff-go` label; `[HOLD]` and `attente-jeff` never auto-merge.**
+
 ## About
 
 WeAdU Ltd — MIT license. See each package for tool documentation.
