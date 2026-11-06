@@ -1,6 +1,9 @@
 import { auditUtm, type UtmFinding } from "./audit-utm.ts";
-import { classifyChannel, mediumHasChannel, type Ga4Channel } from "./channels.ts";
-import { normalizeParam, repairDecode } from "./normalize.ts";
+import { cleanCampaignUrl } from "./clean-url.ts";
+import { type Ga4Channel } from "./channels.ts";
+import { GA4_CAVEATS } from "./ga4-copy.ts";
+import { normalizeParam, type NamingSuggestion } from "./normalize.ts";
+import type { Ga4Assessment } from "./audit-utm.ts";
 
 export const MAX_URLS = 5000;
 
@@ -9,8 +12,9 @@ export interface ListItem {
   inputUrl: string;
   ok: boolean;
   findings: UtmFinding[];
-  ga4Channel: Ga4Channel | null;
-  suggestedUrl: string | null;
+  ga4: Ga4Assessment;
+  cleanedUrl: string | null;
+  namingSuggestions: NamingSuggestion[];
   changed: boolean;
   duplicateOf: number | null;
 }
@@ -32,70 +36,26 @@ export interface AuditListResult {
     changed: number;
     channels: Partial<Record<Ga4Channel, number>>;
   };
+  ga4Caveats: readonly string[];
   synonyms: SynonymGroup[];
   items: ListItem[];
   truncated: boolean;
   weadu: { name: "WeAdU"; url: "https://weadu.com/" };
 }
 
-interface Built {
-  url: string;
-  key: string;
-  utm: Map<string, string>;
-  raw: Map<string, string>;
-}
-
-function rebuild(input: string): Built | null {
-  let url: URL;
-  try {
-    url = new URL(input.trim());
-  } catch {
-    return null;
-  }
-  if ((url.protocol !== "http:" && url.protocol !== "https:") || url.username || url.password) return null;
-  // Entries keep their original order; UTM values are replaced in place.
-  const entries: { key: string | null; text: string }[] = [];
-  const utm = new Map<string, string>();
-  const raw = new Map<string, string>();
-  const take = (query: string, inQuery: boolean): string[] => {
-    const rest: string[] = [];
-    for (const chunk of query.split("&")) {
-      if (chunk === "") continue;
-      const eq = chunk.indexOf("=");
-      const rawKey = eq === -1 ? chunk : chunk.slice(0, eq);
-      // "??utm_source=" leaves a stray "?" in the key: drop it.
-      const key = repairDecode(rawKey).trim().toLowerCase().replace(/^\?+/, "");
-      if (!key.startsWith("utm_")) {
-        if (inQuery) entries.push({ key: null, text: chunk });
-        else rest.push(chunk);
-        continue;
-      }
-      if (utm.has(key)) continue; // keep the first value, like auditUtm
-      const value = eq === -1 ? "" : repairDecode(chunk.slice(eq + 1));
-      if (value.trim() === "") continue;
-      raw.set(key, value);
-      utm.set(key, normalizeParam(key, value));
-      entries.push({ key, text: "" });
-    }
-    return rest;
-  };
-  take(url.search.slice(1), true);
-  const hash = url.hash.slice(1);
-  // UTM tags found after # are moved into the query, where analytics tools read them.
-  const hashRest = hash.includes("=") ? take(hash, false) : null;
-  const parts = entries.map((e) => (e.key === null ? e.text : `${e.key}=${encodeURIComponent(utm.get(e.key) ?? "")}`));
-  const query = parts.join("&");
-  const fragment = hashRest === null ? (hash ? `#${hash}` : "") : hashRest.length ? `#${hashRest.join("&")}` : "";
-  const base = url.origin + url.pathname;
-  const key = base.toLowerCase().replace(/\/$/, "") + "?" + [...parts].sort().join("&");
-  return { url: base + (query ? `?${query}` : "") + fragment, key, utm, raw };
+function utmSignature(raw: Map<string, string>): string {
+  return [...raw.entries()]
+    .filter(([key]) => key.startsWith("utm_"))
+    .map(([key, value]) => `${key}=${value}`)
+    .sort()
+    .join("&");
 }
 
 export function auditUtmList(urls: readonly string[]): AuditListResult {
   const list = Array.isArray(urls) ? urls : [];
   const truncated = list.length > MAX_URLS;
   const items: ListItem[] = [];
-  const firstByKey = new Map<string, number>();
+  const firstByKey = new Map<string, { index: number; signature: string }>();
   const variants = new Map<string, Map<string, number>>();
   const channels: Partial<Record<Ga4Channel, number>> = {};
 
@@ -103,56 +63,51 @@ export function auditUtmList(urls: readonly string[]): AuditListResult {
     const text = typeof input === "string" ? input : "";
     const audit = auditUtm(text);
     const findings = [...audit.findings];
-    const built = audit.canonicalUrl === null ? null : rebuild(text);
-    let ga4Channel: Ga4Channel | null = null;
+    const cleaned = audit.canonicalUrl === null ? null : cleanCampaignUrl(text);
     let duplicateOf: number | null = null;
 
-    if (built) {
-      for (const [param, value] of built.raw) {
+    if (cleaned) {
+      for (const [param, value] of cleaned.raw) {
         if (param !== "utm_source" && param !== "utm_medium" && param !== "utm_campaign") continue;
-        const groupKey = `${param}\u0000${built.utm.get(param)}`;
+        const groupKey = `${param}\u0000${normalizeParam(param, value)}`;
         const counts = variants.get(groupKey) ?? new Map<string, number>();
         counts.set(value.trim(), (counts.get(value.trim()) ?? 0) + 1);
         variants.set(groupKey, counts);
       }
-      const medium = audit.present.utm_medium?.trim();
-      if (medium) {
-        ga4Channel = classifyChannel(audit.present.utm_source ?? "", medium, audit.present.utm_campaign ?? "");
-        if (ga4Channel === "Unassigned") {
-          const fixed = built.utm.get("utm_medium") ?? "";
-          const hint = fixed !== medium.toLowerCase() && mediumHasChannel(fixed) ? ` Use "${fixed}" instead.` : "";
+      if (audit.ga4.channel) channels[audit.ga4.channel] = (channels[audit.ga4.channel] ?? 0) + 1;
+      const signature = utmSignature(cleaned.raw);
+      const first = firstByKey.get(cleaned.key);
+      if (first === undefined) firstByKey.set(cleaned.key, { index, signature });
+      else {
+        duplicateOf = first.index;
+        const exact = (list[first.index] ?? "").trim() === text.trim();
+        if (exact) {
+          findings.push({ severity: "warning", code: "duplicate_url", message: `Same URL as item ${first.index}.` });
+        } else if (signature === first.signature) {
           findings.push({
             severity: "warning",
-            code: "ga4_unassigned",
-            param: "utm_medium",
-            message: `GA4 puts utm_medium "${medium}" with this source in no default channel, so the traffic shows as Unassigned.${hint}`,
+            code: "equivalent_url",
+            message: `Same UTM values as item ${first.index}. Parameter order, the fragment, and host or path case do not change the values GA4 reads, and GA4 does not read UTM tags after #.`,
+          });
+        } else {
+          findings.push({
+            severity: "warning",
+            code: "variant_url",
+            message: `Same campaign as item ${first.index} once letter case is folded. GA4 counts those values as separate rows.`,
           });
         }
-        channels[ga4Channel] = (channels[ga4Channel] ?? 0) + 1;
-      }
-      const first = firstByKey.get(built.key);
-      if (first === undefined) firstByKey.set(built.key, index);
-      else {
-        duplicateOf = first;
-        const exact = (list[first] ?? "").trim() === text.trim();
-        findings.push({
-          severity: "warning",
-          code: exact ? "duplicate_url" : "variant_url",
-          message: exact
-            ? `Same URL as item ${first}.`
-            : `Same campaign as item ${first} once case and synonyms are normalized; GA4 would split it into separate rows.`,
-        });
       }
     }
 
     items.push({
       index,
       inputUrl: text,
-      ok: !findings.some((f) => f.severity === "error"),
+      ok: !findings.some((finding) => finding.severity === "error"),
       findings,
-      ga4Channel,
-      suggestedUrl: built?.url ?? null,
-      changed: built !== null && built.url !== text.trim(),
+      ga4: audit.ga4,
+      cleanedUrl: audit.cleanedUrl,
+      namingSuggestions: audit.namingSuggestions,
+      changed: audit.cleanedUrl !== null && audit.cleanedUrl !== text.trim(),
       duplicateOf,
     });
   });
@@ -171,14 +126,15 @@ export function auditUtmList(urls: readonly string[]): AuditListResult {
   return {
     summary: {
       total: items.length,
-      ok: items.filter((i) => i.ok).length,
-      withErrors: items.filter((i) => !i.ok).length,
-      withWarnings: items.filter((i) => i.findings.some((f) => f.severity === "warning")).length,
-      duplicates: items.filter((i) => i.duplicateOf !== null).length,
+      ok: items.filter((item) => item.ok).length,
+      withErrors: items.filter((item) => !item.ok).length,
+      withWarnings: items.filter((item) => item.findings.some((finding) => finding.severity === "warning")).length,
+      duplicates: items.filter((item) => item.duplicateOf !== null).length,
       unassignedChannel: channels.Unassigned ?? 0,
-      changed: items.filter((i) => i.changed).length,
+      changed: items.filter((item) => item.changed).length,
       channels,
     },
+    ga4Caveats: GA4_CAVEATS,
     synonyms,
     items,
     truncated,

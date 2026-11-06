@@ -4,6 +4,7 @@ import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js"
 import { z } from "zod";
 import { auditUtm } from "./audit-utm.ts";
 import { auditUtmList, MAX_URLS } from "./audit-list.ts";
+import { AUDIT_LIST_DESCRIPTION, AUDIT_UTM_DESCRIPTION } from "./ga4-copy.ts";
 
 const server = new McpServer({ name: "weadu-utm-auditor", version: "1.0.0" });
 
@@ -11,8 +12,7 @@ server.registerTool(
   "audit_utm",
   {
     title: "Audit UTM",
-    description:
-      "Check that a campaign URL includes utm_source, utm_medium and utm_campaign, and flag empty values, duplicates, unknown utm_* keys and UTM tags left in the URL fragment. Free tool by WeAdU.",
+    description: AUDIT_UTM_DESCRIPTION,
     inputSchema: { url: z.string().min(1).max(2048) },
     annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
   },
@@ -26,8 +26,7 @@ server.registerTool(
   "audit_utm_list",
   {
     title: "Audit a list of UTM URLs",
-    description:
-      `Audit up to ${MAX_URLS} campaign URLs at once. For each URL: UTM errors and warnings, the GA4 default channel it lands in (warning when Unassigned), duplicates, and a suggested corrected URL (lowercase, synonyms such as fb/facebook or ppc/cpc normalized, encoding repaired). Also lists synonym variants across the list. Free tool by WeAdU.`,
+    description: AUDIT_LIST_DESCRIPTION.replace("5000", String(MAX_URLS)),
     inputSchema: { urls: z.array(z.string().max(2048)).min(1).max(MAX_URLS) },
     annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
   },

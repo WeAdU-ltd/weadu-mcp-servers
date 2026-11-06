@@ -2,7 +2,7 @@
   "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
   "name": "com.weadu/ai-visibility",
   "title": "WeAdU AI Visibility",
-  "description": "See if AI crawlers can fetch a public URL. Free tool by WeAdU.",
+  "description": "See if AI crawlers can fetch a public URL. Private workspace reference — not published on npm. Free tool by WeAdU (https://weadu.com/).",
   "websiteUrl": "https://weadu.com/",
   "version": "1.0.0",
   "repository": {
