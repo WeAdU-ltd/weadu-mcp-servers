@@ -279,6 +279,7 @@ test("README et zod : vie privée, canaux manuels, correctif de sécurité", () 
   assert.match(utmServer.description, /mechanically cleaned/);
   assert.equal(utmServer.description.includes("mechanical fixes"), false);
   assert.match(utmServer.description, /weadu\.com/);
+  assert.ok(utmServer.description.length <= 100, `server.json description: ${utmServer.description.length} chars`);
   assert.match(AUDIT_UTM_DESCRIPTION, /weadu\.com/);
   assert.match(AUDIT_LIST_DESCRIPTION, /weadu\.com/);
   for (const file of ["../package.json", "../../ai-visibility/package.json"]) {
