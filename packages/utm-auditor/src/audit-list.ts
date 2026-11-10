@@ -6,6 +6,8 @@ import { normalizeParam, type NamingSuggestion } from "./normalize.ts";
 import type { Ga4Assessment } from "./audit-utm.ts";
 
 export const MAX_URLS = 5000;
+/** MCP input may exceed {@link MAX_URLS}; only the first {@link MAX_URLS} are audited (`truncated: true`). */
+export const MAX_LIST_INPUT = 20_000;
 
 export interface ListItem {
   index: number;

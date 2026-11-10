@@ -20,7 +20,7 @@
   "engines": { "node": ">=22.18" },
   "scripts": {
     "build": "tsc -p tsconfig.json",
-    "test": "node --experimental-strip-types --test src/audit-utm.test.ts src/audit-list.test.ts src/matrix.test.ts",
+    "test": "node --experimental-strip-types --test src/audit-utm.test.ts src/audit-list.test.ts src/matrix.test.ts src/tool-input.test.ts",
     "prepublishOnly": "npm run build"
   },
   "dependencies": {
