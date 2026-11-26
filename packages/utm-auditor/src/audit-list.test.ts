@@ -39,14 +39,16 @@ test("GA4: canaux des règles manuelles", () => {
 test("Synonymes et réparation d'encodage", () => {
   assert.equal(normalizeSource(" LinkedIn "), "linkedin");
   assert.equal(normalizeSource("lnkd"), "linkedin");
-  assert.equal(normalizeSource("FB"), "facebook");
+  assert.equal(normalizeSource("FB"), "fb");
   assert.equal(normalizeSource("acme"), "acme");
   assert.equal(normalizeMedium("PPC"), "cpc");
-  assert.equal(normalizeMedium("paid"), "cpc");
+  assert.equal(normalizeMedium("paid"), "paid");
+  assert.equal(normalizeMedium("sem"), "sem");
   assert.equal(normalizeMedium("Social-Media"), "social");
   assert.equal(repairDecode("50%off"), "50%off");
   assert.equal(repairDecode("caf%E9"), "café");
-  assert.equal(repairDecode("a+b%20c"), "a b c");
+  assert.equal(repairDecode("a+b%20c"), "a+b c");
+  assert.equal(repairDecode("C++"), "C++");
 });
 
 test("Liste: URL corrigée, canal, doublons et synonymes", () => {
@@ -59,25 +61,29 @@ test("Liste: URL corrigée, canal, doublons et synonymes", () => {
     "not a url",
   ]);
   const [a, b, c, d, e, f] = r.items;
-  assert.equal(a?.suggestedUrl, U("utm_source=linkedin&utm_medium=cpc&utm_campaign=spring"));
+  assert.equal(a?.cleanedUrl, U("utm_source=linkedin&utm_medium=ppc&utm_campaign=spring"));
   assert.equal(a?.changed, true);
-  assert.equal(a?.ga4Channel, "Paid Social");
-  assert.equal(b?.duplicateOf, 0);
-  assert.ok(b?.findings.some((x) => x.code === "variant_url"));
+  assert.equal(a?.ga4.channel, "Paid Social");
+  assert.equal(a?.namingSuggestions.find((s) => s.param === "utm_medium")?.to, "cpc");
+  assert.equal(b?.duplicateOf, null);
+  assert.equal(b?.ga4.channel, "Paid Other");
+  assert.equal(b?.namingSuggestions.find((s) => s.param === "utm_source")?.to, "linkedin");
+  assert.equal(b?.namingSuggestions.find((s) => s.param === "utm_source")?.channelAfter, "Paid Social");
   assert.equal(c?.changed, false);
-  assert.equal(d?.duplicateOf, 0);
-  assert.ok(d?.findings.some((x) => x.code === "variant_url"));
-  assert.equal(e?.ga4Channel, "Unassigned");
+  assert.equal(d?.duplicateOf, 2);
+  assert.ok(d?.findings.some((x) => x.code === "duplicate_url"));
+  assert.equal(e?.ga4.channel, "Unassigned");
   const warn = e?.findings.find((x) => x.code === "ga4_unassigned");
-  assert.ok(warn?.message.includes('"email"'));
-  assert.equal(e?.suggestedUrl, U("utm_source=hubspot&utm_medium=email&utm_campaign=oct"));
+  assert.equal(warn?.message.includes('"email"'), false);
+  assert.equal(e?.cleanedUrl, U("utm_source=hubspot&utm_medium=newsletter&utm_campaign=oct"));
+  assert.equal(e?.namingSuggestions.some((s) => s.to === "email"), false);
   assert.equal(f?.ok, false);
-  assert.equal(f?.suggestedUrl, null);
+  assert.equal(f?.cleanedUrl, null);
   const src = r.synonyms.find((s) => s.param === "utm_source" && s.normalized === "linkedin");
   assert.deepEqual(src?.variants.map((v) => v.value).sort(), ["LinkedIn", "linkedin", "lnkd"]);
   assert.ok(r.synonyms.some((s) => s.param === "utm_medium" && s.normalized === "cpc"));
   assert.equal(r.summary.total, 6);
-  assert.equal(r.summary.duplicates, 3);
+  assert.equal(r.summary.duplicates, 1);
   assert.equal(r.summary.unassignedChannel, 1);
 });
 
@@ -93,9 +99,9 @@ test("Liste: encodage réparé, paramètres non UTM conservés, UTM du fragment 
     "https://example.com/?utm_source=google&utm_medium=cpc#utm_campaign=Promo",
     "https://example.com/?utm_source=google&utm_medium=cpc&utm_campaign=x&utm_campaign=y",
   ]);
-  assert.equal(r.items[0]?.suggestedUrl, "https://example.com/?id=7&utm_source=google&utm_medium=cpc&utm_campaign=50%25off");
-  assert.equal(r.items[1]?.suggestedUrl, "https://example.com/?utm_source=google&utm_medium=cpc&utm_campaign=promo");
-  assert.equal(r.items[2]?.suggestedUrl, "https://example.com/?utm_source=google&utm_medium=cpc&utm_campaign=x");
+  assert.equal(r.items[0]?.cleanedUrl, "https://example.com/?id=7&utm_source=google&utm_medium=cpc&utm_campaign=50%25off");
+  assert.equal(r.items[1]?.cleanedUrl, "https://example.com/?utm_source=google&utm_medium=cpc&utm_campaign=promo");
+  assert.equal(r.items[2]?.cleanedUrl, "https://example.com/?utm_source=google&utm_medium=cpc&utm_campaign=x");
 });
 
 test("Liste: limites et entrées vides", () => {
@@ -114,8 +120,8 @@ test("Liste: ordre des paramètres conservé, '??' réparé", () => {
     "https://example.com/?utm_source=Twitter&linkId=9&utm_medium=social&utm_campaign=a",
     "https://example.com/??utm_source=blog&utm_medium=referral&utm_campaign=a",
   ]);
-  assert.equal(r.items[0]?.suggestedUrl, "https://example.com/?utm_source=twitter&linkId=9&utm_medium=social&utm_campaign=a");
-  assert.equal(r.items[1]?.suggestedUrl, "https://example.com/?utm_source=blog&utm_medium=referral&utm_campaign=a");
+  assert.equal(r.items[0]?.cleanedUrl, "https://example.com/?utm_source=twitter&linkId=9&utm_medium=social&utm_campaign=a");
+  assert.equal(r.items[1]?.cleanedUrl, "https://example.com/?utm_source=blog&utm_medium=referral&utm_campaign=a");
   assert.equal(r.items[1]?.ok, false);
 });
 
