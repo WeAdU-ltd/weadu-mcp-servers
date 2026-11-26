@@ -5,6 +5,7 @@ import { z } from "zod";
 import { auditUtm } from "./audit-utm.ts";
 import { auditUtmList, MAX_URLS } from "./audit-list.ts";
 import { AUDIT_LIST_DESCRIPTION, AUDIT_UTM_DESCRIPTION } from "./ga4-copy.ts";
+import { auditListInputSchema } from "./tool-input.ts";
 
 const server = new McpServer({ name: "weadu-utm-auditor", version: "1.0.0" });
 
@@ -27,7 +28,7 @@ server.registerTool(
   {
     title: "Audit a list of UTM URLs",
     description: AUDIT_LIST_DESCRIPTION.replace("5000", String(MAX_URLS)),
-    inputSchema: { urls: z.array(z.string().max(2048)).min(1).max(MAX_URLS) },
+    inputSchema: auditListInputSchema.shape,
     annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
   },
   async ({ urls }) => {
